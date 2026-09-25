@@ -30,23 +30,6 @@ async function drawChart(array, enhet = "Vannstand (cm)") {
     chart.draw(googleDataArray, options);
 }
 
-//-------------------------------------------------------------------------------------
-//FIREBASE 
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDQDHZs3gI26M_JI-NtNvjomFg4hlGR0lE",
-    authDomain: "hovsvannet.firebaseapp.com",
-    databaseURL: "https://hovsvannet-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "hovsvannet",
-    storageBucket: "hovsvannet.appspot.com",
-    messagingSenderId: "895103776628",
-    appId: "1:895103776628:web:8108b99fc7b4ee30405e21"
-};
-
-const app = firebase.initializeApp(firebaseConfig);
-const db = app.database();
-const ref = db.ref('waterLevelMeasurements');
-
 //-----------------------------------------------------------------------------------------------
 //Add data from local file to array
 const nullpunkt = 354
@@ -57,34 +40,6 @@ const hovsvannet = {
     data: allData,
     graphType: "normal", //normal, average, stigningsgrad
     intervalSize: 1, //0=hours, 1=days, 2=months
-    updateLastMeasurement: async function(){
-        try{
-            //Get last value measured
-            const lastMeasurementSnapshot = await ref.limitToLast(1).once("value")
-            const lastMeasurementObject = lastMeasurementSnapshot.val()
-            //Display on website
-            document.getElementById("lastMeasurement").innerHTML = "Vannstanden Nå: " + Math.round(nullpunkt - lastMeasurementObject[Object.keys(lastMeasurementObject)[0]].level) + "cm"
-            document.getElementById("lastMeasurementDate").innerHTML = "Sist oppdatert: " + (new Date(lastMeasurementObject[Object.keys(lastMeasurementObject)[0]].dato*1000)).toString().slice(3,24)
-            return lastMeasurementObject
-    
-        } catch(err){
-            console.log("Error retrieving current measurement: ", err)
-            document.getElementById("lastMeasurement").innerHTML = "Error: kunne ikke hente data"
-            document.getElementById("lastMeasurementDate").innerHTML = ""
-        }
-    },
-    updateLastIntervalStigningsgrad: function(array, interval){
-        let i = array.length - 1
-        while ((array[array.length-1][0] - array[i][0]) < interval){
-            i = i - 1
-        }
-        //Display on website 
-        const lastIntervalStigningsgrad = [array[i][0], array[array.length-1][0],(array[array.length-1][1] - array[i][1])]
-        document.getElementById("stigning").innerHTML = "Stigning siste time: " + (lastIntervalStigningsgrad[2]).toFixed(2) +"cm"
-        document.getElementById("stigningDate").innerHTML = "Stigning i perioden: kl." + (new Date(lastIntervalStigningsgrad[0]*1000)).toString().slice(16,24) + " - kl." + (new Date(lastIntervalStigningsgrad[1]*1000)).toString().slice(16,24)
-    
-        return lastIntervalStigningsgrad
-    },
     getMax: function(dataInterval = this.data, display){
         let currentRecord = dataInterval[0][1]
         let currentArray = dataInterval[0]
@@ -120,18 +75,6 @@ const hovsvannet = {
 const endOfLevelFile = waterLevelFile[waterLevelFile.length-1][0];
 
 async function getDataFromDB(){
-    //Get last value measured and display on website
-    hovsvannet.updateLastMeasurement()
-    
-    //Get missing data after local file and add to array with local data
-    const snapshot = await ref.orderByChild('dato').startAt(endOfLevelFile).once("value")
-    const DBData = snapshot.val()
-    console.log("Measurements retrieved from DB: ", Object.keys(DBData).length)
-    Object.keys(DBData).forEach(element => {
-        hovsvannet.data.push([DBData[element].dato, Math.round(nullpunkt - DBData[element].level)])
-    });
-    //Get stigningsgrad and display on website
-    hovsvannet.updateLastIntervalStigningsgrad(hovsvannet.data, size[0])
 
     //Restrict dates available to pick based on data interval
     let date = new Date()
